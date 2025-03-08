@@ -1,0 +1,8 @@
+# ELM327-emulator
+ELM327-emulator==3.0.3
+
+# python-OBD
+git+https://github.com/brendan-w/python-OBD@master
+
+fastapi
+uvicorn
