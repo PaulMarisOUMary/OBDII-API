@@ -52,11 +52,13 @@ class OBDII():
         }
     
     def add_monitor(self, name: str) -> None:
+        name = name.upper()
         if not commands.has_name(name):
             raise ValueError(f"Invalid command name: {name}")
         self.monitored.add(name)
 
     def remove_monitor(self, name: str) -> None:
+        name = name.upper()
         if name not in self.monitored:
             raise ValueError(f"Command {name} is not being monitored")
         self.monitored.discard(name)
