@@ -40,7 +40,8 @@ For more details on configuring the connection, refer to the [official py-obdii 
 
 ### Quick Configuration
 
-Change the `SERIAL_PORT` constant value in the [main.py](/api/main.py) file.
+- Change the `SERIAL_PORT` constant value in the [main.py](/api/main.py) file.
+- Edit the `DEFAULT_FETCH_COMMANDS` constant to change default registered commands names.
 
 ### Start the API
 
@@ -54,4 +55,4 @@ python -m uvicorn --reload --factory "main:app_factory" --log-level debug
 API Endpoints
 - **GET** `/data`: Fetch the current data being monitored.
 - **POST** `/add` `{key: command_name}`: Register a new command to be monitored.
-- **DELETE** `/remove` `{key: command_name}`: Fetch the current data being monitored.
+- **DELETE** `/remove` `{key: command_name}`: Unregister a command from being monitored.
