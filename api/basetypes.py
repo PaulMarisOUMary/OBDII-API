@@ -1,9 +1,8 @@
-from asyncio import TaskGroup
-from fastapi import Body, FastAPI, Request
-from pydantic import BaseModel
-from typing import Any, Literal, Optional
+from asyncio import Lock, TaskGroup
+from fastapi import FastAPI, Request
+from typing import Any, Dict
 
-from obdii import OBDII
+from obdii import Connection
 
 # API and Router
 
@@ -11,9 +10,9 @@ class API(FastAPI):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.task_group: TaskGroup
-        self.obd: OBDII
-
-# # Requests and Responses
+        self.obd: Connection
+        self.storage_lock: Lock
+        self.storage: Dict[str, Any]
 
 class RawRequest(Request):
     @property

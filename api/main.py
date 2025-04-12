@@ -1,45 +1,111 @@
-from asyncio import TaskGroup
+from asyncio import Event, Lock, TaskGroup, to_thread
 from contextlib import asynccontextmanager
+from typing import Any, Callable, Dict
 from fastapi import APIRouter, HTTPException
 
 from basetypes import API, RawRequest
-from obdii import OBDII
+
+from obdii import Connection, commands
+
+
+SERIAL_PORT = "COM5"
+
+API_VERSION = "1.0"
+
+DEFAULT_FETCH_COMMANDS = {
+    commands.VEHICLE_SPEED.name,
+    commands.ENGINE_SPEED.name,
+    commands.COOLANT_TEMP.name,
+    "INVALID_COMMAND_NAME",
+}
+
+
+class StorageUpdater():
+    def __init__(self, app: API):
+        self.storage_lock = app.storage_lock
+        self.storage = app.storage
+        self.task_group = app.task_group
+
+    def update_storage(self, cp_storage: Dict[str, Any]):        
+        async def update():
+            async with self.storage_lock:
+                keys_to_remove = set(cp_storage.keys()) - set(self.storage.keys())
+
+                for key in keys_to_remove:
+                    cp_storage.pop(key)
+
+                self.storage.update(cp_storage)
+
+        self.task_group.create_task(update())
+
+def background_fetch(stop: Callable[[], bool], app: API) -> None:
+    updater = StorageUpdater(app)
+
+    while not stop():
+        conn = app.obd
+        cp_storage = app.storage.copy()
+
+        for command_name in cp_storage.keys():
+            try:
+                response = conn.query(commands[command_name])
+                cp_storage[command_name] = response.value
+            except KeyError:
+                cp_storage[command_name] = f"Error: {command_name} not found"
+            except Exception as e:
+                cp_storage[command_name] = f"CRITError: {str(e)}"
+
+        updater.update_storage(cp_storage)
 
 @asynccontextmanager
 async def lifespan(app: API):
+    stop_event = Event()
+
+    async def run_blocking():
+        await to_thread(background_fetch, stop_event.is_set, app)
+
     async with TaskGroup() as tg:
         app.task_group = tg
-        app.obd = OBDII()
+        app.obd = Connection(SERIAL_PORT)
+        app.storage_lock = Lock()
+        app.storage = dict.fromkeys(DEFAULT_FETCH_COMMANDS, None)
 
-        # ! TODO Remove this
-        app.obd.connect("COM5", fast=False)
-        for monitor in app.obd.get_command_names():
-            app.obd.add_monitor(monitor)
-
-        background_task = tg.create_task(app.obd.background_fetch())
+        tg.create_task(run_blocking())
         yield
+        stop_event.set()
 
-        app.obd.monitoring_on = False
-        background_task.cancel()
 
 router = APIRouter()
 
 def app_factory():
     app = API(
-        title="OBD2 API",
-        version="0.1",
+        title="OBDII API",
+        version=API_VERSION,
         lifespan=lifespan,
     )
     app.include_router(router)
     return app
 
-@router.get("/status")
-async def connection_status(raw_request: RawRequest):
-    """Returns the current status of the OBD connection."""
-    return {"connected": raw_request.app.obd.is_connected()}
 
 @router.get("/data")
 async def request_data(raw_request: RawRequest):
-    """Returns the current OBD2 data being monitored."""
-    return {"active_data": raw_request.app.obd.data}
+    async with raw_request.app.storage_lock:
+        return {"data": dict(raw_request.app.storage)}
 
+@router.post("/add")
+async def add_key(raw_request: RawRequest, key: str):
+    key = key.upper()
+
+    async with raw_request.app.storage_lock:
+        raw_request.app.storage[key] = None
+        return {"status": f"'{key}' added"}
+
+@router.delete("/remove")
+async def remove_key(raw_request: RawRequest, key: str):
+    key = key.upper()
+
+    async with raw_request.app.storage_lock:
+        if key in raw_request.app.storage:
+            del raw_request.app.storage[key]
+            return {"status": f"'{key}' removed"}
+        else:
+            raise HTTPException(status_code=404, detail=f"Key '{key}' not found")
