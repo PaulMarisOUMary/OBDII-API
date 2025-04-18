@@ -4,15 +4,13 @@
 
 This API continuously fetches data from registered OBDII commands names.
 
-You can register new commands using the `POST /add` endpoint, and unregister commands using the `DELETE /remove` endpoint. To retrieve the data, simply use the `GET /data` endpoint.
-
-Available commands are listed within `obdii.commands`.
+Available commands to register are listed within `obdii.commands`.
 
 ## Setup
 
 Python 3.**9** or higher is required.
 
-A [Virtual Environment](https://docs.python.org/3/library/venv.html) is recommended to install the library.
+A [Virtual Environment](https://docs.python.org/3/library/venv.html) is recommended to use the project.
 
 ```bash
 # Linux/macOS
@@ -46,13 +44,15 @@ For more details on configuring the connection, refer to the [official py-obdii 
 ### Start the API
 
 ```bash
-cd api
-python -m uvicorn --reload --factory "main:app_factory" --log-level debug
+python -m uvicorn --app-dir api --factory main:app_factory --host 0.0.0.0 --port 8000 --log-level debug --reload
 ```
 
 ## Usage
 
 API Endpoints
+- **POST** `connect` `{**kwargs}`: Initialize the connection and start background polling task.
+- **POST** `disconnect`: Stop the background polling task and close the connection.
+- **GET** `/status`: Check the connection status.
 - **GET** `/data`: Fetch the current data being monitored.
 - **POST** `/add` `{key: command_name}`: Register a new command to be monitored.
 - **DELETE** `/remove` `{key: command_name}`: Unregister a command from being monitored.

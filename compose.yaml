@@ -1,0 +1,11 @@
+services:
+  api:
+    build:
+      context: .
+    environment:
+      - UVICORN_HOST=0.0.0.0
+      - UVICORN_PORT=8000
+    ports:
+      - 8000:8000
+    # devices:
+    #   - "/dev/ttyUSB0:/dev/ttyUSB0" # Adjust this to your device
