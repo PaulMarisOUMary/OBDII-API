@@ -47,6 +47,40 @@ For more details on configuring the connection, refer to the [official py-obdii 
 python -m uvicorn --app-dir api --factory main:app_factory --host 0.0.0.0 --port 8000 --log-level debug --reload
 ```
 
+- API will be available at http://localhost:8000
+
+## Docker
+
+This project can also be run using Docker and Docker Compose.
+
+### Device Binding
+
+To connect to a physical OBDII adapter, you need to bind the device inside your compose.yaml file.
+
+Uncomment and adjust the devices section according to your system:
+
+```yaml
+services:
+  api:
+    build:
+      context: .
+    environment:
+      - UVICORN_HOST=0.0.0.0
+      - UVICORN_PORT=8000
+    ports:
+      - 8000:8000
+    # devices:
+    #   - "/dev/ttyUSB0:/dev/ttyUSB0" # Adjust this to your device
+```
+
+### Build and Run
+
+```bash
+docker compose up --build
+```
+
+- API will be available at http://localhost:8000
+
 ## Usage
 
 API Endpoints
